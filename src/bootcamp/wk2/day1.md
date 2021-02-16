@@ -2,7 +2,7 @@
 
 ## Overview of the day
 
-This week we are going to build a complete app. Like deliveroo or Uber Eats. On this first day we are going to start by designing our data model. An app's data model is like the foundations of a building. Everything is build on top of this foundation.
+This week we are going to build part of a Restaurants app, like Deliveroo or Uber Eats. On this first day we are going to start by designing our data model. An app's data model is like the foundations of a building. Everything is build on top of this foundation.
 
 <hr/>
 
@@ -19,7 +19,7 @@ This week we are going to build a complete app. Like deliveroo or Uber Eats. On 
 
 ## Materials needed
 
-* https://planttext.com for UML diagrams || install the plantuml plugin for VSCode
+* [https://planttext.com](https://planttext.com) for UML diagrams || install the plantuml plugin for VSCode
 
 ## Lesson
 
@@ -86,7 +86,7 @@ When you have completed these tasks, can you create a coverage report using Jest
 ```json
 {
   "scripts": {
-    "test": "jest --watchAll",
+    "test": "jest",
     "test:report": "jest --coverage=true"
   },
   "dependencies": {
@@ -109,7 +109,7 @@ Create a new project folder and use `npm init` to start a new Node.js app. Creat
 1. Create an Item and associate it with a Menu (Item should have a name and price)
 1. Sumbit your coverage report to your coach
 
-[attendance log](https://platform.whitehat.org.uk/apprentice/attendance-log/158)
+[attendance log](https://platform.multiverse.io/apprentice/attendance-log/158)
 
 [main](/swe)|[prev](/swe/bootcamp/wk1/day5.html)|[next](/swe/bootcamp/wk2/day2.html)
 

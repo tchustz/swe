@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Mod 1 > Week 2 > Day 3</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="shortcut icon" type="image/x-icon" href="/swe/favicon.ico">
+    <link rel="stylesheet" href="/swe/modest.css">
+    <link rel="stylesheet" href="/swe/prism.css">
+    <link rel="stylesheet" href="/swe/style.css">
+  </head>
+  <body>
+    <h1>Mod 1 > Week 2 > Day 3</h1>
+    <h2>Overview of the day</h2>
+    <p>Today we are going to implement the Auth0 flow. We are then going to outsource our User accounts and authentication to Auth0. This is the day when we also start to plan for the final Module project.</p>
+    <h2>Learning Objectives</h2>
+    <ul>
+      <li>Use token based authorization to protect resources</li>
+    </ul>
+    <h2>Before we start</h2>
+    <ul>
+      <li>Create a Auth0 account</li>
+    </ul>
+    <h2>Materials needed</h2>
+    <h1>Lesson 1 - Auth0</h1>
+    <p>In this lesson you will sign up to Auth0, a commercial implementation of OAuth, used by many well known companies including M&#x26;S to secure their Web APIs.</p>
+    <ol>
+      <li>
+        <p>Go to <a href="https://auth0.com/signup">https://auth0.com/signup</a></p>
+      </li>
+      <li>
+        <p>Use your personal email account, select your region as Europe and opt out of notifications. Ensure you create a PERSONAL account type.</p>
+      </li>
+      <li>
+        <p>Navigate to your Dashboard and select to <code>Create API</code> for your UsersAPI using the same details as below 
+          <img src="https://user-images.githubusercontent.com/1316724/102825938-b2b26f00-43d7-11eb-8eb5-444ba240a13b.PNG" alt="Auth0 Users API" title="Users API">
+        </p>
+      </li>
+      <li>
+        <p>Navigate to the <code>Test</code> tab of your new API. You will see that a new application has been created called UsersAPI(Test Application) which is authorized to access the API.</p>
+        <p>You will see a section called <code>Asking Auth0 for tokens from my application</code>. Let's look in more detail at the parameters passed as part of the cURL request:</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Element</th>
+              <th>Explanation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>audience</td>
+              <td>represents the resource which we are trying to access</td>
+            </tr>
+            <tr>
+              <td>grant_type</td>
+              <td>we are using <code>client_credentials</code> OAuth flow as we are making a machine -> machine connection hence schemes like username + password or social logins don't make sense. You can read more about this flow <a href="https://auth0.com/docs/flows/client-credentials-flow">here</a>. If you are creating an SPA you should use the <a href="https://auth0.com/docs/flows/authorization-code-flow-with-proof-key-for-code-exchange-pkce">Authorization Code Flow with Proof Key for Code Exchange (PKCE)</a> instead (we will cover this later).</td>
+            </tr>
+            <tr>
+              <td>client_id</td>
+              <td>this is the id of the UsersAPI(Test Application) which is authorised to access the UsersAPI.</td>
+            </tr>
+            <tr>
+              <td>client_secret</td>
+              <td>this is the client secret of the UsersAPI(Test Application) which is authorised to access the UsersAPI.</td>
+            </tr>
+          </tbody>
+        </table>
+      </li>
+      <li>
+        <p>Use the information from the cURL request to help you construct a Postman request to obtain a new OAuth token.</p>
+      </li>
+      <li>
+        <p>You should see a 200 success status and the body of the response should contain an <code>access_token</code>. Paste it into the Debugger at <a href="https://jwt.io">https://jwt.io</a> and explore the contents.</p>
+        <p>Common claims held within JWTs are:</p>
+        <ul>
+          <li>Issuer (iss)</li>
+          <li>Subject (sub)</li>
+          <li>Audience (aud)</li>
+          <li>Expiration time (exp)</li>
+          <li>Not before (nbf)</li>
+          <li>Issued at (iat)</li>
+          <li>JWT ID (jti)</li>
+        </ul>
+      </li>
+    </ol>
+    <h1>Lesson 3 - Securing your API with OAuth</h1>
+    <p>Open the Users API you created yesterday in Visual Code. This is currently secured using Basic Auth and we are going to modify it to be secured instead by OAuth.</p>
+    <p><strong>Coach note</strong> - solutions for JavaScript and Java at <a href="https://github.com/WhiteHatLearningProducts/swe-solutions/tree/main/mod1/users-api/oauthSecured/">https://github.com/WhiteHatLearningProducts/swe-solutions/tree/main/mod1/users-api/oauthSecured/</a></p>
+    <h2>Javascript developers</h2>
+    <ol>
+      <li>
+        <p>
+          Install the following node package dependencies:
+          <code>npm install cors dotenv express-jwt jwks-rsa</code>
+        </p>
+      </li>
+      <li>
+        <p>Remove the dependency to <code>express-basic-auth</code></p>
+      </li>
+      <li>
+        <p>Add the following to the start of your <code>app.js</code> file as follows</p>
+      </li>
+    </ol>
+    <pre><code class="language-javascript">const jwt = require('express-jwt');
+const jwksRsa = require('jwks-rsa');
+const cors = require('cors'); 
+
+require('dotenv').config('.env'); // Note: env vars should not be used in production
+</code></pre>
+    <ol start="4">
+      <li>Add the following line AFTER the call to initialise Express</li>
+    </ol>
+    <pre><code class="language-javascript">app.use(cors());
+</code></pre>
+    <ol start="5">
+      <li>
+        <p>Create a <code>.env</code> file and add the following entries (substituting in your personal Auth0 domain):</p>
+        <p><code>AUTH0_AUDIENCE=https://users</code></p>
+        <p><code>AUTH0_DOMAIN=[your domain].eu.auth0.com</code></p>
+      </li>
+      <li>
+        <p>Add a function to check for a valid OAuth (JWT) token:</p>
+      </li>
+    </ol>
+    <pre><code class="language-javascript">// create middleware for checking the JWT
+const checkJwt = jwt({
+  secret: jwksRsa.expressJwtSecret({
+    cache: true,
+    rateLimit: true,
+    jwksRequestsPerMinute: 5,
+    jwksUri: `https://${process.env.AUTH0_DOMAIN}.well-known/jwks.json`
+  }),
+  audience: process.env.AUTH0_AUDIENCE,
+  issuer: `https://${process.env.AUTH0_DOMAIN}`,
+  algorithms: ['RS256']
+});
+
+</code></pre>
+    <ol start="7">
+      <li>Secure your API:</li>
+    </ol>
+    <pre><code class="language-javascript">app.get("/users/:id", checkJwt, (req, res) => {
+</code></pre>
+    <h2>Java developers</h2>
+    <ol>
+      <li>Add the OAuth dependencies to your <code>pom.xml</code> file:</li>
+    </ol>
+    <pre><code class="language-xml">    &#x3C;properties>
+        ...
+        &#x3C;spring-security.version>5.4.2&#x3C;/spring-security.version>
+        ...
+    &#x3C;/properties>
+
+        &#x3C;/dependency>
+        &#x3C;dependency>
+            &#x3C;groupId>org.springframework.security&#x3C;/groupId>
+            &#x3C;artifactId>spring-security-oauth2-resource-server&#x3C;/artifactId>
+            &#x3C;version>${spring-security.version}&#x3C;/version>
+        &#x3C;/dependency>
+        &#x3C;dependency>
+            &#x3C;groupId>org.springframework.security&#x3C;/groupId>
+            &#x3C;artifactId>spring-security-oauth2-jose&#x3C;/artifactId>
+            &#x3C;version>${spring-security.version}&#x3C;/version>
+        &#x3C;/dependency>
+        &#x3C;dependency>
+            &#x3C;groupId>org.springframework.security&#x3C;/groupId>
+            &#x3C;artifactId>spring-security-config&#x3C;/artifactId>
+            &#x3C;version>${spring-security.version}&#x3C;/version>
+        &#x3C;/dependency>
+</code></pre>
+    <ol start="2">
+      <li>Create a new class which checks that the JWT has the correct audience value</li>
+    </ol>
+    <pre><code class="language-java">import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
+import org.springframework.security.oauth2.jwt.Jwt;
+
+/**
+ * Validates that the JWT is intended for our API.
+ */
+public class AudienceValidator implements OAuth2TokenValidator&#x3C;Jwt> {
+
+    private final String audience;
+
+    AudienceValidator(String audience) {
+        this.audience = audience;
+    }
+
+    public OAuth2TokenValidatorResult validate(Jwt jwt) {
+        OAuth2Error error = new OAuth2Error("invalid_token", "The required audience is missing", null);
+
+        if (jwt.getAudience().contains(audience)) {
+            return OAuth2TokenValidatorResult.success();
+        }
+        return OAuth2TokenValidatorResult.failure(error);
+    }
+}
+</code></pre>
+    <ol start="3">
+      <li>Modifiy your SecurityConfiguration to use OAuth</li>
+    </ol>
+    <pre><code class="language-java">@Configuration
+@EnableWebSecurity
+public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
+
+    @Value("${auth0.audience}")
+    private String audience;
+
+    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
+    private String issuer;
+
+    @Override
+    protected void configure(HttpSecurity httpSecurity) throws Exception {
+        httpSecurity.authorizeRequests()
+                .anyRequest()
+                .authenticated()
+                // ** IMPORTANT! do not use the line below in production apps!! **
+                .and().csrf().disable()
+                .and().cors()
+                .and().oauth2ResourceServer().jwt();
+    }
+
+    /**
+     * Required to enable CORS - NOT suitable for production code!
+     *
+     * @return CorsConfigurationSource cors configuration
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        final CorsConfiguration configuration = new CorsConfiguration();
+
+        // ** IMPORTANT! do not use the line below in production apps!! **
+        // ** Specify specific origins instead
+        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE"));
+        configuration.setAllowCredentials(true);
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
+
+        final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
+    }
+
+    @Bean
+    JwtDecoder jwtDecoder() {
+        NimbusJwtDecoder jwtDecoder = (NimbusJwtDecoder)
+                JwtDecoders.fromOidcIssuerLocation(issuer);
+
+        OAuth2TokenValidator&#x3C;Jwt> audienceValidator = new AudienceValidator(audience);
+        OAuth2TokenValidator&#x3C;Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(issuer);
+        OAuth2TokenValidator&#x3C;Jwt> withAudience = new DelegatingOAuth2TokenValidator&#x3C;>(withIssuer, audienceValidator);
+
+        jwtDecoder.setJwtValidator(withAudience);
+
+        return jwtDecoder;
+    }
+}
+</code></pre>
+    <ol start="4">
+      <li>Add a new file <code>application.yml</code> under <code>src/main/resources</code> to specify your Auth0 domain and audience</li>
+    </ol>
+    <pre><code class="language-xml">auth0:your Auth
+  audience: https://users
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://[your Auth0 domain].eu.auth0.com/
+</code></pre>
+    <h2>Secured</h2>
+    <p>Now test your middleware. You should not be able to access <code>/users/:id</code>. You will get a status code of 401 and a message about 'UnauthorizedError: No authorization token was found'.</p>
+    <p>Now we need to get our token. At the moment we are authenticating our users in the <code>/login</code> route and adding their id to <code>req.session.userId</code>. Instead of adding an authenticated user to a session we are going to call out to Auth0.com and request a token. We'll then send this token back to the user.</p>
+    <p>You can use <a href="https://npmjs.com/node-fetch">node-fetch</a> to make the request, the body of the POST request you can find on the Auth0 'Test' tab. It should look something like this:</p>
+    <p><em>YOUR_CLIENT_ID below needs to be replaced with the value in the example body from the Auth0 'Test' tab, same with YOUR_CLIENT_SECRET</em></p>
+    <pre><code class="language-javascript">// user is Authenticated - Get a token
+const auth0Config = {
+    client_id: YOUR_CLIENT_ID,
+    client_secret: YOUR_CLIENT_SECRET,
+    audience: 'http://localhost:3000/',
+    grant_type: 'client_credentials'
+}
+const {access_token} = await fetch('https://dev-7954hoz9.eu.auth0.com/oauth/token', {
+    method: 'POST',
+    headers: {
+        'content-type': 'application/json'
+    },
+    body: JSON.stringify(auth0Config)
+}).then(res => res.json())
+
+res.send(access_token)
+</code></pre>
+    <h2>Calling your API</h2>
+    <ol>
+      <li>
+        <p>Once you user has called <code>/login</code> and obtain an Auth0 token</p>
+      </li>
+      <li>
+        <p>Call <code>/users/:id</code> with an <code>Authorization</code> header that uses a <code>Bearer Token</code> set to this token. Hopefully you should see a 200 OK response! See below for an example (this is generated by Postman).</p>
+      </li>
+    </ol>
+    <pre><code class="language-json">{
+    "Authorization": "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ijk3ZFlFdUxYTmNQRkxYRXdZc0JwLSJ9.eyJpc3MiOiJodHRwczovL2Rldi03OTU0aG96OS5ldS5hdXRoMC5jb20vIiwic3ViIjoiaHg4YVBnMEw2UmFESGZ6cjRzTUJINkliWWo1Nkg3WGtAY2xpZW50cyIsImF1ZCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMS8iLCJpYXQiOjE2MTE3NDE5NTgsImV4cCI6MTYxMTgyODM1OCwiYXpwIjoiaHg4YVBnMEw2UmFESGZ6cjRzTUJINkliWWo1Nkg3WGsiLCJndHkiOiJjbGllbnQtY3JlZGVudGlhbHMifQ.FIDcKqc0AK0cj8K4PVvhmkRe7JSJhFVQMPsg9G5N7au8mN0J7ZcnMmL6UFADB1g3mXMWg_FttPOxF3KwvA8ylO3TAkHWKl-V5yY1akvaUNHfgV7lAhMpVMov_B9VRVecZR5AEImXDbcTDWcTIaa92AXos4RxXHjUhhbgJdCt50dL4F3QwA9WLiEfu72XOUId9_o1zRyvY7fSdsV9v1g2hdDWC1EmMVxSBsULxw98Rna0zNUlH66P0CJTqsnN3Z0qU-7ouRPNJZThQwBVHWtMqBTedibxq1ZxJGfYONlD-L-_gprxZmFv0wCQAJGgM8jkJym3OjYPdA7tavJbs2jQWA"
+}
+</code></pre>
+    <p>❓ How is this different from the Basic Auth that we have been using?</p>
+    <h2>Assignment</h2>
+    <p>Implement token based authorization using Auth0 as a token provider.</p>
+    <ol>
+      <li>Authenticate on <a href="https://Auth0.com">https://Auth0.com</a></li>
+      <li>Create a new API</li>
+      <li>Update your express server with the jwtCheck middleware function</li>
+      <li>Goto the 'Test' tab on your Auth0 API Page and use the settings in the example request</li>
+      <li>Once your user is authenticated in the /login route - Get a token from Auth0 and send it back to your user</li>
+      <li>Verify everything is secure and working ok you should not be able to access the /users/:id route without a token</li>
+    </ol>
+    <hr>
+    <h1>Lesson 2 - Offload user Authorization and Authentication to Auth0</h1>
+    <h2>Learning Objectives</h2>
+    <ul>
+      <li>Set up Auth0s universal login</li>
+      <li>Recall and follow the 3 stages of design planning (input, processes, outputs)</li>
+      <li>Communicate the design of a programme using diagrams</li>
+    </ul>
+    <h2>Lesson</h2>
+    <p>OAuth deals specifically with authorisation of resources, <strong>OpenID Connect</strong> is a protocol which is built on top of OAuth 2.0 and focusses on user authentication. It is widely used to enable user logins on consumer websites and mobile apps.</p>
+    <p>
+      <img src="https://user-images.githubusercontent.com/1316724/102927348-b8b75700-448e-11eb-9d0d-3d7fa4e6e1ea.png" alt="sequence diagram showing the OpenID Connect authorization flow">
+    </p>
+    <p>OpenID Connect uses an additional JSON Web Token (JWT), called an ID token, to hold basic profile information about the authenticated (logged in) user e.g. their name or email address. Here is an example:</p>
+    <p><code>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkZyZWQgRmxpbnRzdG9uZSIsImVtYWlsIjoiZnJlZC5mbGludHN0b25lQHdoaXRlaGF0Lm9yZy51ayIsImlhdCI6MTUxNjIzOTAyMn0.DlHfHG2qZXpWszZv-X8LwoQkZUlqVgaXoRmnHXE2y_I</code></p>
+    <p>Use <a href="https://jwt.io">https://jwt.io</a> to find out the name and email hidden in the JWT ID token.</p>
+    <p>So, instead of passing a user name and password to our Login page and looking this up in our user database, we will delegate authentication to Auth0. This avoid us having to store usernames and passwords (a good thing!) but means that users need to be registered in the Auth0 dashboard.</p>
+    <h2>Implementing authentication using Auth0</h2>
+    <p>
+      <img src="https://user-images.githubusercontent.com/4499581/105991041-39273400-609b-11eb-9078-6975f7a5e2bc.png" alt="Regular Web App Option on Auth0">
+    </p>
+    <ol>
+      <li>Using the Auth0 Dashboard, create a new application and choose 'Regular Web Applications'</li>
+      <li>Create a totally new express server locally on your machine</li>
+      <li>Follow the wizard and select
+        <ul>
+          <li>Node.js(Express)</li>
+          <li>INTEGRATE NOW</li>
+          <li>SAVE SETTINGS AND CONTINUE</li>
+          <li>Add the code to your express project</li>
+        </ul>
+      </li>
+      <li>Spin up your server and visit <code>http://localhost:3000/login</code></li>
+    </ol>
+    <h3>OpenID connect</h3>
+    <p>This <a href="https://npmjs.com/express-openid-connect">library</a> creates 3 routes for you on your express server. Be careful not to over write these. They are:</p>
+    <table>
+      <thead>
+        <tr>
+          <th align="left">route</th>
+          <th align="left">purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td align="left"><code>/login</code></td>
+          <td align="left">visit this route to authenticate and create new users (see below)</td>
+        </tr>
+        <tr>
+          <td align="left"><code>/logout</code></td>
+          <td align="left">invalidate the logged in users token which will effectively end their 'session'</td>
+        </tr>
+        <tr>
+          <td align="left"><code>/callback</code></td>
+          <td align="left">This is the redirect back to your app after successful authentication</td>
+        </tr>
+        <tr>
+          <td align="left"><code>/</code></td>
+          <td align="left">This is the "home" route. Logged in users arrive here after being redirected from <code>/callback</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      <img src="https://user-images.githubusercontent.com/4499581/105988966-59092880-6098-11eb-87d4-d1c59af032d0.png" alt="the login page from Auth0">
+    </p>
+    <p>You also have a couple of middleware functions from the library to help protect all and individual routes. The library adds a <a href="https://auth0.github.io/express-openid-connect/interfaces/requestcontext.html">RequestContext</a> object onto the <code>req</code> object in express. You can access the logged in user like this <code>req.oidc.user</code>. You can view their token like this <code>req.oidc.accessToken</code>. Below are two of the main functions in the library to get you going.</p>
+    <table>
+      <thead>
+        <tr>
+          <th align="left">middleware</th>
+          <th align="left">purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td align="left">auth</td>
+          <td align="left">this adds <code>req.oidc</code> to all your requests</td>
+        </tr>
+        <tr>
+          <td align="left">requiresAuth</td>
+          <td align="left">use this to protect routes that require a user to be logged in</td>
+        </tr>
+      </tbody>
+    </table>
+    <pre><code class="language-javascript">app.get('/profile', requiresAuth(), (req, res) => {
+  res.send(req.oidc.user)
+})
+
+/**
+{
+    "nickname": "bernard.mordan",
+    "name": "bernard.mordan@multiverse.io",
+    "picture": "https://s.gravatar.com/avatar/52c5aa1584c1dc479342c603b30ff9e2?s=480&#x26;r=pg&#x26;d=https%3A%2F%2Fcdn.auth0.com%2Favatars%2Fbe.png",
+    "updated_at": "2021-01-27T11:43:17.588Z",
+    "email": "bernard.mordan@multiverse.io",
+    "email_verified": false,
+    "sub": "auth0|601151d59c2f080069ec8597"
+}
+*/
+</code></pre>
+    <p>That last property the <code>sub</code> is a unique id number for that user. That might be useful...</p>
+    <h2>Summary</h2>
+    <p>Below is the code to bootstrap a server that will use Auth0 to create, authenticate and manage authorization of users.</p>
+    <pre><code class="language-javascript">const express = require('express')
+const app = express()
+const { sequelize } = require('./models')
+const { auth } = require('express-openid-connect')
+
+const openIDconfig = {
+    authRequired: false,
+    auth0Logout: true,
+    secret: 'a long, randomly-generated string stored in env that you make up',
+    baseURL: 'http://localhost:3000',
+    clientID: YOUR_CLIENT_ID,
+    issuerBaseURL: 'https://YOUR_AUTH0_DOMAIN.eu.auth0.com'
+  }
+
+app.use(express.json())
+app.use(auth(openIDconfig))
+
+// app.get('/login') this is created by express-openid-connect and displays a login widget
+// app.get('/callback') this is created by express-openid-connect and fetches an authenticated user their token
+// app.get('/logout') this is created by express-openid-connect and will end a users token based session
+
+app.get('/', (req, res) => {
+    res.send(req.oidc.user || "No user logged in")
+})
+
+app.listen(3000, () => {
+    sequelize.sync().then(() => console.log("All ready for banking"))
+})
+</code></pre>
+    <ul>
+      <li>You will need to set up sequelize and your data models</li>
+      <li>You will need to have a public folder to server assets out of i.e. <code>style.css</code></li>
+      <li>You need to decide on how you will integrate your frontend views (handlebars, pug, vue.js, react)</li>
+    </ul>
+    <p>You can look back a previous projects to remind yourself of how to do this.</p>
+    <h2>Assignment</h2>
+    <p>Below is a spec for a banking app.</p>
+    <ol>
+      <li>Users can log into your app</li>
+      <li>Users can see a balance on their account (due to little time target mobile first)</li>
+      <li>Your app will need to be deployed (heroku)</li>
+      <li>A user should be able to invite a friend via a link in an email (you can integrate with gmail for this)</li>
+      <li>A user should see all their friends listed when they are logged in</li>
+      <li>A user should be able to transfer balance to their friends</li>
+    </ol>
+    <p>In groups come up with a design pitch for this app.</p>
+    <ul>
+      <li>What will your data model look like?</li>
+      <li>How will you trigger an email?</li>
+      <li>How will the link in the email work?</li>
+      <li>How can you transfer funds from one user to another?</li>
+      <li>How can a user add funds?</li>
+      <li>What UI do you need to build?</li>
+    </ul>
+    <p>You will have 2 days to complete this challenge. You can work in groups of 3. You will need to deploy to heroku so your email link will work.</p>
+    <p>
+      <a href="https://platform.multiverse.io/apprentice/attendance-log/185">attendance log</a>
+      <a href="/swe">main</a>|<a href="/swe/mod1/wk2/day2.html">prev</a>|<a href="/swe/mod1/wk2/day4.html">next</a>
+    </p>
+    <script src="/swe/prism.js"></script>
+    <script src="/swe/tabbed-code-blocks.js"></script>
+  </body>
+</html>

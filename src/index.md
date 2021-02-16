@@ -1,6 +1,6 @@
 # Welcome to SWE
 
-![Welcome to SWE](https://user-images.githubusercontent.com/4499581/92381014-fec7f500-f101-11ea-8fcd-506232e5de87.png)
+![Welcome to SWE](https://user-images.githubusercontent.com/4499581/106140314-83c1b280-6166-11eb-9c99-7f0f7180cb57.png)
 
 ## SWE Curriculum Overview
 
@@ -31,8 +31,8 @@
         - [Day 4](/swe/bootcamp/wk4/day4.html)
         - [Day 5](/swe/bootcamp/wk4/day5.htm)
     + Week 5
-        - [Day 1 - 5](/swe/bootcamp/wk5/day1.html)
-        - [Deployment](/swe/bootcamp/wk5/deployment.html)
+        - [Day 1](/swe/bootcamp/wk5/day1.html)
+        - [Day 2](/swe/bootcamp/wk5/day2.html)
 
 ----
 
